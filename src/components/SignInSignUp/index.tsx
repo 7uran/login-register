@@ -1,25 +1,56 @@
 "use client";
 import React, { useState } from "react";
 import { FaFacebookF, FaGoogle, FaLinkedinIn } from "react-icons/fa";
-import { Formik, Field, Form, ErrorMessage } from "formik";
+import { useFormik } from "formik";
 import * as Yup from "yup";
+import { useRequestMutation } from "@/http/axiosFetcher";
+import { useRouter } from "next/navigation";
+import { setCookie } from "cookies-next";
 
 const SignInSignUp: React.FC = () => {
+    const router = useRouter();
     const [isSignUp, setIsSignUp] = useState(false);
 
-    const handleSignUpClick = () => {
-        setIsSignUp(!isSignUp);
-    };
+    const { trigger: loginservice, isMutating: loading, error: isErr } = useRequestMutation(
+        "login",
+        {
+            method: "POST",
+            module: "devApi",
+            headers: {
+                "Content-Type": "application/json",
+            },
+        }
+    );
 
     const validationSchema = Yup.object({
-        name: isSignUp
-            ? Yup.string().required("Name is required")
-            : Yup.string(),
+        name: isSignUp ? Yup.string().required("Name is required") : Yup.string(),
         username: Yup.string().required("Username is required"),
         password: Yup.string()
             .min(6, "Password must be at least 6 characters")
             .required("Password is required"),
     });
+
+    const formik = useFormik({
+        initialValues: { name: "", username: "", password: "" },
+        validationSchema,
+        onSubmit: (values) => {
+            loginservice({
+                body: values,
+            }).then((res) => {
+                setCookie("token", res.token, {
+                    expires: new Date(Date.now() + 60 * 60000),
+                });
+
+                if (res.token) {
+                    router.push("/dashboard");
+                }
+            });
+        },
+    });
+
+    const handleSignUpClick = () => {
+        setIsSignUp(!isSignUp);
+    };
 
     return (
         <div className="wrapper w-full h-screen flex items-center justify-center">
@@ -30,9 +61,7 @@ const SignInSignUp: React.FC = () => {
                 >
                     <div className="flex flex-col items-center gap-5">
                         <div>
-                            <h1 className="font-extrabold text-3xl">
-                                {isSignUp ? "Create Account" : "Sign in"}
-                            </h1>
+                            <h1 className="font-extrabold text-3xl">{isSignUp ? "Create Account" : "Sign in"}</h1>
                         </div>
                         <div className="flex gap-3">
                             <button className="rounded-full w-10 h-10 border flex items-center justify-center">
@@ -52,72 +81,60 @@ const SignInSignUp: React.FC = () => {
                         </div>
                     </div>
 
-                    <Formik
-                        initialValues={{ name: "", username: "", password: "" }}
-                        validationSchema={validationSchema}
-                        onSubmit={(values) => {
-                            console.log(values);
-                        }}
-                    >
-                        {({ errors, touched }) => (
-                            <Form className="flex items-center flex-col gap-4">
-                                {isSignUp && (
-                                    <div className="w-[284px]">
-                                        <Field
-                                            name="name"
-                                            className={`bg-[#EEEEEE] w-full h-[39px] p-2 text-sm outline-none ${errors.name && touched.name ? "border border-red-500" : ""
-                                                }`}
-                                            placeholder="Name"
-                                        />
-                                        <ErrorMessage
-                                            name="name"
-                                            component="div"
-                                            className="text-red-500 text-xs"
-                                        />
-                                    </div>
-                                )}
-                                <div className="w-[284px]">
-                                    <Field
-                                        name="username"
-                                        type="text"
-                                        className={`bg-[#EEEEEE] w-full h-[39px] p-2 text-sm outline-none ${errors.username && touched.username ? "border border-red-500" : ""
-                                            }`}
-                                        placeholder="Username"
-                                    />
-                                    <ErrorMessage
-                                        name="username"
-                                        component="div"
-                                        className="text-red-500 text-xs"
-                                    />
-                                </div>
-                                <div className="w-[284px]">
-                                    <Field
-                                        name="password"
-                                        type="password"
-                                        className={`bg-[#EEEEEE] w-full h-[39px] p-2 text-sm outline-none ${errors.password && touched.password ? "border border-red-500" : ""
-                                            }`}
-                                        placeholder="Password"
-                                    />
-                                    <ErrorMessage
-                                        name="password"
-                                        component="div"
-                                        className="text-red-500 text-xs"
-                                    />
-                                </div>
-                                <div className="flex items-center flex-col gap-2">
-                                    {!isSignUp && (
-                                        <p className="text-sm">Forgot your password?</p>
-                                    )}
-                                    <button
-                                        type="submit"
-                                        className="border px-10 py-2 rounded-full bg-[#F44B2C] text-white font-semibold text-xs"
-                                    >
-                                        {isSignUp ? "SIGN UP" : "SIGN IN"}
-                                    </button>
-                                </div>
-                            </Form>
+                    <form onSubmit={formik.handleSubmit} className="flex items-center flex-col gap-4">
+                        {isSignUp && (
+                            <div className="w-[284px]">
+                                <input
+                                    name="name"
+                                    className={`bg-[#EEEEEE] w-full h-[39px] p-2 text-sm outline-none ${formik.touched.name && formik.errors.name ? "border border-red-500" : ""
+                                        }`}
+                                    placeholder="Name"
+                                    onChange={formik.handleChange}
+                                    value={formik.values.name}
+                                />
+                                {formik.touched.name && formik.errors.name ? (
+                                    <div className="text-red-500 text-xs">{formik.errors.name}</div>
+                                ) : null}
+                            </div>
                         )}
-                    </Formik>
+                        <div className="w-[284px]">
+                            <input
+                                name="username"
+                                type="text"
+                                className={`bg-[#EEEEEE] w-full h-[39px] p-2 text-sm outline-none ${formik.touched.username && formik.errors.username ? "border border-red-500" : ""
+                                    }`}
+                                placeholder="Username"
+                                onChange={formik.handleChange}
+                                value={formik.values.username}
+                            />
+                            {formik.touched.username && formik.errors.username ? (
+                                <div className="text-red-500 text-xs">{formik.errors.username}</div>
+                            ) : null}
+                        </div>
+                        <div className="w-[284px]">
+                            <input
+                                name="password"
+                                type="password"
+                                className={`bg-[#EEEEEE] w-full h-[39px] p-2 text-sm outline-none ${formik.touched.password && formik.errors.password ? "border border-red-500" : ""
+                                    }`}
+                                placeholder="Password"
+                                onChange={formik.handleChange}
+                                value={formik.values.password}
+                            />
+                            {formik.touched.password && formik.errors.password ? (
+                                <div className="text-red-500 text-xs">{formik.errors.password}</div>
+                            ) : null}
+                        </div>
+                        <div className="flex items-center flex-col gap-2">
+                            {!isSignUp && <p className="text-sm">Forgot your password?</p>}
+                            <button
+                                type="submit"
+                                className="border px-10 py-2 rounded-full bg-[#F44B2C] text-white font-semibold text-xs"
+                            >
+                                {isSignUp ? "SIGN UP" : "SIGN IN"}
+                            </button>
+                        </div>
+                    </form>
                 </div>
                 <div
                     className={`bg-gradient-to-r-custom w-full flex justify-center items-center transform transition-transform duration-500 ${isSignUp ? "translate-x-[-384px]" : ""

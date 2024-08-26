@@ -14,3 +14,18 @@ export interface Product {
     price: number;
     image: string;
 }
+
+
+export interface EditProductModalProps {
+    product: Product | null;
+    onClose: () => void;
+    onSave: (updatedProduct: Product) => void;
+}
+
+
+export interface CustomModalProps {
+    isOpen: boolean;
+    onClose: () => void;
+    onSubmit: (data: any) => void;
+    initialData?: any;
+}

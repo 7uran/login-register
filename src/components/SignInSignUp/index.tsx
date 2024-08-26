@@ -33,18 +33,25 @@ const SignInSignUp: React.FC = () => {
     const formik = useFormik({
         initialValues: { name: "", username: "", password: "" },
         validationSchema,
-        onSubmit: (values) => {
-            loginservice({
-                body: values,
-            }).then((res) => {
-                setCookie("token", res.token, {
-                    expires: new Date(Date.now() + 60 * 60000),
+        onSubmit: async (values) => {
+            try {
+                const res = await loginservice({
+                    body: values,
                 });
 
-                if (res.token) {
+                if (res?.token) {
+                    setCookie("token", res.token, {
+                        expires: new Date(Date.now() + 60 * 60000),
+                    });
                     router.push("/dashboard");
+                } else {
+
+                    formik.setErrors({ password: "Invalid username or password" });
                 }
-            });
+            } catch (error) {
+
+                formik.setErrors({ password: "Login failed. Please try again." });
+            }
         },
     });
 
